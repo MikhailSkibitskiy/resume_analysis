@@ -274,7 +274,7 @@ class ResumeAnalyzerApp:
 Программа работает: {uptime}
 
 Анализатор резюме преподавателей
-Ораукл найма МС. Разработано с использованием Python
+Оракул найма МС. Разработано с использованием Python
 """
 
         tk.Label(self.main_area, text=info_text,
