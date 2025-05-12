@@ -74,5 +74,9 @@ try:
     # Обучение модели
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train_vec, y_train)
+    # Сохранение модели и векторизатора
+    joblib.dump(model, 'RR/модель_преподавателей.pkl')
+    joblib.dump(vectorizer, 'RR/векторизатор.pkl')
+    print("Модель и векторизатор сохранены в файлы 'модель_преподавателей.pkl' и 'векторизатор.pkl'")
 
 
