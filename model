@@ -26,3 +26,25 @@ except LookupError:
 # Инициализация
 russian_stopwords = stopwords.words("russian")
 stemmer = SnowballStemmer("russian")
+
+def preprocess_text(text):
+    """Предварительная обработка текста"""
+    if not isinstance(text, str):
+        return ""
+
+    text = text.lower()
+    text = re.sub('[%s]' % re.escape(string.punctuation), '', text)
+    text = re.sub(r'\d+', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    tokens = []
+    for token in text.split():
+        if token not in russian_stopwords:
+            token = stemmer.stem(token)
+            tokens.append(token)
+
+    return " ".join(tokens)
+
+# Загрузка данных из файла
+
+..
