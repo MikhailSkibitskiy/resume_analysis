@@ -125,3 +125,12 @@ try:
         "Учитель английского языка средней школы с педагогическим образованием",
         "Менеджер по продажам без опыта преподавания"
     ]
+    print("\nПримеры предсказаний:")
+    for sample in samples:
+        processed_text = preprocess_text(sample)
+    text_vec = vectorizer.transform([processed_text])
+    proba = model.predict_proba(text_vec)[0][1] * 100
+    print(f"{sample[:50]}...: {proba:.1f}% соответствия")
+
+    plt.show()
+
