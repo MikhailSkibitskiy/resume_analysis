@@ -101,3 +101,18 @@ try:
     disp.plot(cmap='Blues')
     plt.title('Матрица ошибок')
     plt.savefig('матрица_ошибок.png')
+
+    # 3. Важность признаков
+    feature_importances = pd.DataFrame({
+        'feature': vectorizer.get_feature_names_out(),
+        'importance': model.feature_importances_
+    }).sort_values('importance', ascending=False).head(20)
+
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x='importance', y='feature', data=feature_importances)
+    plt.title('Топ-20 важных слов')
+    plt.tight_layout()
+    plt.savefig('важность_признаков.png')
+
+
+
