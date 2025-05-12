@@ -12,3 +12,17 @@ import re
 import nltk
 import joblib
 import seaborn as sns
+
+# Настройка стиля графиков
+plt.style.use('default')
+sns.set_palette('husl')
+
+# Скачивание стоп-слов (при первом запуске)
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
+
+# Инициализация
+russian_stopwords = stopwords.words("russian")
+stemmer = SnowballStemmer("russian")
