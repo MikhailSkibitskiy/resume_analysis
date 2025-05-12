@@ -114,5 +114,8 @@ try:
     plt.tight_layout()
     plt.savefig('важность_признаков.png')
 
+    # Вывод отчетов
+    print("\nОтчет о классификации:")
+    print(classification_report(y_test, y_pred))
 
 
