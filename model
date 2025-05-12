@@ -134,3 +134,7 @@ try:
 
     plt.show()
 
+# Сообщение об ошибке
+except Exception as e:
+    print(f"\nПроизошла ошибка: {str(e)}")
+    
