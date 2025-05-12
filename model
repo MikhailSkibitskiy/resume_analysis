@@ -93,3 +93,11 @@ try:
     plt.legend()
     plt.grid()
     plt.savefig('кривая_обучения.png')
+
+    # 2. Матрица ошибок
+    y_pred = model.predict(X_test_vec)
+    cm = confusion_matrix(y_test, y_pred)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    disp.plot(cmap='Blues')
+    plt.title('Матрица ошибок')
+    plt.savefig('матрица_ошибок.png')
