@@ -79,4 +79,17 @@ try:
     joblib.dump(vectorizer, 'RR/векторизатор.pkl')
     print("Модель и векторизатор сохранены в файлы 'модель_преподавателей.pkl' и 'векторизатор.pkl'")
 
+    # 1. Кривая обучения - график
+    train_sizes, train_scores, test_scores = learning_curve(
+        model, X_train_vec, y_train, cv=5,
+        scoring='accuracy', train_sizes=np.linspace(0.1, 1.0, 5))
 
+    plt.figure(figsize=(10, 6))
+    plt.plot(train_sizes, np.mean(train_scores, axis=1), label='Обучение')
+    plt.plot(train_sizes, np.mean(test_scores, axis=1), label='Валидация')
+    plt.title('Кривая обучения')
+    plt.xlabel('Размер обучающей выборки')
+    plt.ylabel('Точность')
+    plt.legend()
+    plt.grid()
+    plt.savefig('кривая_обучения.png')
