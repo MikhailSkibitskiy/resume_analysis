@@ -37,8 +37,8 @@ class ResumeAnalyzerApp:
             self.vectorizer_teacher = joblib.load('векторизатор_преподавателей.pkl')
             self.model_manager = joblib.load('модель_менеджеров.pkl')
             self.vectorizer_manager = joblib.load('векторизатор_менеджеров.pkl')
-            self.model_client = joblib.load('клиентский_отдел_модель.pkl')
-            self.vectorizer_client = joblib.load('клиентский_отдел_векторизатор.pkl')
+            self.model_client = joblib.load('модель_клиентский_отдел.pkl')
+            self.vectorizer_client = joblib.load('векторизатор_клиентский_отдел.pkl')
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось загрузить модели!\n{str(e)}")
             self.root.destroy()
@@ -192,7 +192,7 @@ class ResumeAnalyzerApp:
         label = tk.Label(tooltip, text=text, bg="white", relief="solid", borderwidth=1)
         label.pack()
 
-        # Функции для показать/скрыть подсказку
+        # Функции для показа/скрытия подсказки
         def show_tooltip(event):
             tooltip.geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
             tooltip.deiconify()
@@ -225,7 +225,7 @@ class ResumeAnalyzerApp:
                 text = "\n".join([para.text for para in doc.paragraphs])
             else:
                 messagebox.showwarning("Предупреждение",
-                                       "Выбран неизвестный формат файла. "
+                                       "Выбран неподдерживаемый формат файла. "
                                        "Поддерживаются только .txt и .docx")
                 return
 
@@ -235,7 +235,7 @@ class ResumeAnalyzerApp:
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось загрузить файл:\n{str(e)}")
 
-        # Меню для копирования/вставки
+        # Добавляем контекстное меню для копирования/вставки
         self.setup_text_context_menu()
 
         tk.Button(self.main_area, text="Проверить", command=self.analyze_resume,
@@ -264,7 +264,7 @@ class ResumeAnalyzerApp:
                 text = "\n".join([para.text for para in doc.paragraphs])
             else:
                 messagebox.showwarning("Предупреждение",
-                                       "Выбран неизвестный формат файла. "
+                                       "Выбран неподдерживаемый формат файла. "
                                        "Поддерживаются только .txt и .docx")
                 return
 
@@ -354,9 +354,9 @@ class ResumeAnalyzerApp:
                      bg=self.bg_colors[self.current_bg]).pack(pady=5)
 
             # Определяем уровень соответствия
-            if probability > 70:
+            if probability > 75:
                 conclusion = "Высокое соответствие"
-            elif probability > 30:
+            elif probability > 35:
                 conclusion = "Среднее соответствие"
             else:
                 conclusion = "Низкое соответствие"
