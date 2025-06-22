@@ -436,7 +436,7 @@ class ResumeAnalyzerApp:
                  font=("Arial", 16, "bold"),
                  bg=self.bg_colors[self.current_bg]).pack(pady=20)
 
-        version = "Beta 0.3.0"
+        version = "Beta 0.7.0"
         window_size = f"{self.root.winfo_width()}x{self.root.winfo_height()}"
         uptime = f"{int(time.time() - self.start_time)} секунд"
 
