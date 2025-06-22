@@ -1,142 +1,53 @@
 # разработчик - студент Скибицкий М. Е.
 
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, learning_curve
-from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
-from nltk.corpus import stopwords
-from nltk.stem import SnowballStemmer
-import string
-import re
-import nltk
-import joblib
-import seaborn as sns
+import tkinter as tk
+from gui_auth import AuthGUI
+from gui_admin import AdminGUI
+from gui_developer import DeveloperGUI
+from resume_analyzer_app import ResumeAnalyzerApp
 
-# Настройка стиля графиков
-plt.style.use('default')
-sns.set_palette('husl')
 
-# Скачивание стоп-слов (при первом запуске)
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('stopwords')
+class Application:
+    def __init__(self):
+        self.auth_root = None
+        self.current_window = None
 
-# Инициализация
-russian_stopwords = stopwords.words("russian")
-stemmer = SnowballStemmer("russian")
+    def run(self):
+        self.show_auth_window()
 
-def preprocess_text(text):
-    """Предварительная обработка текста"""
-    if not isinstance(text, str):
-        return ""
+    def show_auth_window(self):
+        if self.current_window:
+            self.current_window.destroy()
 
-    text = text.lower()
-    text = re.sub('[%s]' % re.escape(string.punctuation), '', text)
-    text = re.sub(r'\d+', '', text)
-    text = re.sub(r'\s+', ' ', text).strip()
+        self.auth_root = tk.Tk()
+        self.current_window = self.auth_root
+        AuthGUI(self.auth_root, self.on_successful_login)
+        self.auth_root.mainloop()
 
-    tokens = []
-    for token in text.split():
-        if token not in russian_stopwords:
-            token = stemmer.stem(token)
-            tokens.append(token)
+    def on_successful_login(self, username, role, bg_color, font_size, font_weight):
+        if self.auth_root:
+            self.auth_root.quit()  # Выходим из mainloop вместо destroy
+            self.auth_root.destroy()
 
-    return " ".join(tokens)
+        if role == "user":
+            app_root = tk.Tk()
+            self.current_window = app_root
+            ResumeAnalyzerApp(app_root, username, bg_color, font_size, font_weight)
+            app_root.mainloop()
+        elif role == "admin":
+            admin_root = tk.Tk()
+            self.current_window = admin_root
+            AdminGUI(admin_root, username)
+            admin_root.mainloop()
+        elif role == "developer":
+            dev_root = tk.Tk()
+            self.current_window = dev_root
+            DeveloperGUI(dev_root, username)
+            dev_root.mainloop()
 
-# Загрузка данных из файла
-try:
-    df = pd.read_csv('учим.csv', sep=';', encoding='utf-8', header=0)
+def main():
+    app = Application()
+    app.run()
 
-    # Объединение текстовых столбцов
-    text_columns = [col for col in df.columns if df[col].dtype == 'object']
-    df['text'] = df[text_columns].apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1)
-    df['processed_text'] = df['text'].apply(preprocess_text)
-
-    # Создание меток
-    keywords = ['преподаватель', 'учитель', 'репетитор', 'педагог', 'профессор',
-                'образован', 'универ', 'лекц', 'студент', 'урок', 'школ', 'вуз']
-    df['label'] = df['text'].apply(lambda x: int(any(word in x.lower() for word in keywords)))
-
-    # Разделение данных
-    X_train, X_test, y_train, y_test = train_test_split(
-        df['processed_text'],
-        df['label'],
-        test_size=0.2,
-        random_state=42
-    )
-    # Векторизация текста
-    vectorizer = TfidfVectorizer(max_features=1000)
-    X_train_vec = vectorizer.fit_transform(X_train)
-    X_test_vec = vectorizer.transform(X_test)
-
-    # Обучение модели
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
-    model.fit(X_train_vec, y_train)
-    # Сохранение модели и векторизатора
-    joblib.dump(model, 'RR/модель_преподавателей.pkl')
-    joblib.dump(vectorizer, 'RR/векторизатор.pkl')
-    print("Модель и векторизатор сохранены в файлы 'модель_преподавателей.pkl' и 'векторизатор.pkl'")
-
-    # 1. Кривая обучения - график
-    train_sizes, train_scores, test_scores = learning_curve(
-        model, X_train_vec, y_train, cv=5,
-        scoring='accuracy', train_sizes=np.linspace(0.1, 1.0, 5))
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(train_sizes, np.mean(train_scores, axis=1), label='Обучение')
-    plt.plot(train_sizes, np.mean(test_scores, axis=1), label='Валидация')
-    plt.title('Кривая обучения')
-    plt.xlabel('Размер обучающей выборки')
-    plt.ylabel('Точность')
-    plt.legend()
-    plt.grid()
-    plt.savefig('кривая_обучения.png')
-
-    # 2. Матрица ошибок
-    y_pred = model.predict(X_test_vec)
-    cm = confusion_matrix(y_test, y_pred)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
-    disp.plot(cmap='Blues')
-    plt.title('Матрица ошибок')
-    plt.savefig('матрица_ошибок.png')
-
-    # 3. Важность признаков
-    feature_importances = pd.DataFrame({
-        'feature': vectorizer.get_feature_names_out(),
-        'importance': model.feature_importances_
-    }).sort_values('importance', ascending=False).head(20)
-
-    plt.figure(figsize=(10, 6))
-    sns.barplot(x='importance', y='feature', data=feature_importances)
-    plt.title('Топ-20 важных слов')
-    plt.tight_layout()
-    plt.savefig('важность_признаков.png')
-
-    # Вывод отчетов
-    print("\nОтчет о классификации:")
-    print(classification_report(y_test, y_pred))
-
-    # Примеры предсказаний
-    samples = [
-        "Профессор математики с 20-летним стажем преподавания в университете",
-        "Инженер-программист с опытом разработки мобильных приложений",
-        "Учитель английского языка средней школы с педагогическим образованием",
-        "Менеджер по продажам без опыта преподавания"
-    ]
-    print("\nПримеры предсказаний:")
-    for sample in samples:
-        processed_text = preprocess_text(sample)
-    text_vec = vectorizer.transform([processed_text])
-    proba = model.predict_proba(text_vec)[0][1] * 100
-    print(f"{sample[:50]}...: {proba:.1f}% соответствия")
-
-    plt.show()
-
-# Сообщение об ошибке
-except Exception as e:
-    print(f"\nПроизошла ошибка: {str(e)}")
-    
+if __name__ == "__main__":
+    main()
