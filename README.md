@@ -1,4 +1,7 @@
 # resume_analysis
+# для работы АС не требуются файлы main5_prepod.py, main5_manager.py, main5_klient.py.
+#
+#
 
 ![кривая_обучения](https://github.com/user-attachments/assets/a1fed279-a720-42b6-906e-e0c39130293b)
 ![важность_признаков](https://github.com/user-attachments/assets/19600136-74d5-4f76-8807-41244076af5e)
