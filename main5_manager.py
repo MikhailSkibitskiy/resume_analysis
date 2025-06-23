@@ -1,0 +1,149 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split, learning_curve
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
+from nltk.corpus import stopwords
+from nltk.stem import SnowballStemmer
+import string
+import re
+import nltk
+import joblib
+import seaborn as sns
+
+# Настройка стиля графиков
+plt.style.use('default')
+sns.set_palette('husl')
+
+# Скачивание стоп-слов (при первом запуске)
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
+
+# Инициализация
+russian_stopwords = stopwords.words("russian")
+stemmer = SnowballStemmer("russian")
+
+
+def preprocess_text(text):
+    """Предварительная обработка текста"""
+    if not isinstance(text, str):
+        return ""
+
+    text = text.lower()
+    text = re.sub('[%s]' % re.escape(string.punctuation), '', text)
+    text = re.sub(r'\d+', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    tokens = []
+    for token in text.split():
+        if token not in russian_stopwords:
+            token = stemmer.stem(token)
+            tokens.append(token)
+
+    return " ".join(tokens)
+
+
+# Загрузка данных из файла
+try:
+    df = pd.read_csv('учим.csv', sep=';', encoding='utf-8', header=0)
+
+    # Объединение текстовых столбцов
+    text_columns = [col for col in df.columns if df[col].dtype == 'object']
+    df['text'] = df[text_columns].apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1)
+    df['processed_text'] = df['text'].apply(preprocess_text)
+
+    # Создание меток для менеджеров (новые ключевые слова)
+    keywords = [
+        'менеджер', 'управлен', 'руководитель', 'директор',
+        'администрирован', 'координатор', 'лидер', 'team lead',
+        'управление', 'проект', 'отдел', 'команд', 'бизнес',
+        'стратеги', 'организац', 'планирован', 'контрол'
+    ]
+    df['label'] = df['text'].apply(lambda x: int(any(word in x.lower() for word in keywords)))
+
+    # Разделение данных
+    X_train, X_test, y_train, y_test = train_test_split(
+        df['processed_text'],
+        df['label'],
+        test_size=0.2,
+        random_state=42
+    )
+
+    # Векторизация текста
+    vectorizer = TfidfVectorizer(max_features=1000)
+    X_train_vec = vectorizer.fit_transform(X_train)
+    X_test_vec = vectorizer.transform(X_test)
+
+    # Обучение модели
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_train_vec, y_train)
+
+    # Сохранение модели и векторизатора
+    joblib.dump(model, 'модель_менеджеров.pkl')
+    joblib.dump(vectorizer, 'векторизатор_менеджеров.pkl')
+    print("Модель и векторизатор сохранены в файлы 'модель_менеджеров.pkl' и 'векторизатор_менеджеров.pkl'")
+
+    # 1. Кривая обучения - график
+    train_sizes, train_scores, test_scores = learning_curve(
+        model, X_train_vec, y_train, cv=5,
+        scoring='accuracy', train_sizes=np.linspace(0.1, 1.0, 5))
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(train_sizes, np.mean(train_scores, axis=1), label='Обучение')
+    plt.plot(train_sizes, np.mean(test_scores, axis=1), label='Валидация')
+    plt.title('Кривая обучения для модели менеджеров')
+    plt.xlabel('Размер обучающей выборки')
+    plt.ylabel('Точность')
+    plt.legend()
+    plt.grid()
+    plt.savefig('кривая_обучения_менеджеры.png')
+
+    # 2. Матрица ошибок
+    y_pred = model.predict(X_test_vec)
+    cm = confusion_matrix(y_test, y_pred)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    disp.plot(cmap='Blues')
+    plt.title('Матрица ошибок для модели менеджеров')
+    plt.savefig('матрица_ошибок_менеджеры.png')
+
+    # 3. Важность признаков
+    feature_importances = pd.DataFrame({
+        'feature': vectorizer.get_feature_names_out(),
+        'importance': model.feature_importances_
+    }).sort_values('importance', ascending=False).head(20)
+
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x='importance', y='feature', data=feature_importances)
+    plt.title('Топ-20 важных слов для менеджеров')
+    plt.tight_layout()
+    plt.savefig('важность_признаков_менеджеры.png')
+
+    # Вывод отчетов
+    print("\nОтчет о классификации:")
+    print(classification_report(y_test, y_pred))
+
+    # Новые примеры для менеджеров
+    samples = [
+        "Опытный менеджер по продажам с 5-летним стажем управления командой",
+        "Руководитель отдела маркетинга с навыками стратегического планирования",
+        "Технический директор IT компании с опытом управления проектами",
+        "Координатор логистики со знанием управления цепочками поставок",
+        "Инженер-разработчик с опытом программирования на Python",
+        "Учитель математики с педагогическим образованием"
+    ]
+
+    print("\nПримеры предсказаний для менеджеров:")
+    for sample in samples:
+        processed_text = preprocess_text(sample)
+        text_vec = vectorizer.transform([processed_text])
+        proba = model.predict_proba(text_vec)[0][1] * 100
+        print(f"{sample[:50]}...: {proba:.1f}% соответствия менеджеру")
+
+    plt.show()
+
+except Exception as e:
+    print(f"\nПроизошла ошибка: {str(e)}")
