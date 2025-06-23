@@ -1,0 +1,150 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split, learning_curve
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
+from nltk.corpus import stopwords
+from nltk.stem import SnowballStemmer
+import string
+import re
+import nltk
+import joblib
+import seaborn as sns
+
+# Настройка стиля графиков
+plt.style.use('default')
+sns.set_palette('husl')
+
+# Скачивание стоп-слов (при первом запуске)
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
+
+# Инициализация
+russian_stopwords = stopwords.words("russian")
+stemmer = SnowballStemmer("russian")
+
+
+def preprocess_text(text):
+    """Предварительная обработка текста"""
+    if not isinstance(text, str):
+        return ""
+
+    text = text.lower()
+    text = re.sub('[%s]' % re.escape(string.punctuation), '', text)
+    text = re.sub(r'\d+', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    tokens = []
+    for token in text.split():
+        if token not in russian_stopwords:
+            token = stemmer.stem(token)
+            tokens.append(token)
+
+    return " ".join(tokens)
+
+
+# Загрузка данных
+try:
+    df = pd.read_csv('учим.csv', sep=';', encoding='utf-8', header=0)
+
+    # Объединение текстовых столбцов
+    text_columns = [col for col in df.columns if df[col].dtype == 'object']
+    df['text'] = df[text_columns].apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1)
+    df['processed_text'] = df['text'].apply(preprocess_text)
+
+    # Создание меток (ключевые слова для специалиста клиентского отдела)
+    keywords = ['клиент', 'менеджер', 'поддержк', 'обслуживан', 'сервис',
+                'заявк', 'консульт', 'покупател', 'отдел', 'продаж',
+                'клиентоориентирован', 'обращени', 'контакт', 'звонк',
+                'переговоры', 'жалоб', 'решен', 'лояльност', 'маркетинг',
+                'коммуникац', 'устранен', 'консультац', 'активн', 'общение']
+    df['label'] = df['text'].apply(lambda x: int(any(word in x.lower() for word in keywords)))
+
+    # Разделение данных
+    X_train, X_test, y_train, y_test = train_test_split(
+        df['processed_text'],
+        df['label'],
+        test_size=0.2,
+        random_state=42
+    )
+
+    # Векторизация текста
+    vectorizer = TfidfVectorizer(max_features=1000)
+    X_train_vec = vectorizer.fit_transform(X_train)
+    X_test_vec = vectorizer.transform(X_test)
+
+    # Обучение модели
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_train_vec, y_train)
+
+    # Сохранение модели и векторизатора
+    joblib.dump(model, 'клиентский_отдел_модель.pkl')
+    joblib.dump(vectorizer, 'клиентский_отдел_векторизатор.pkl')
+    print("Модель и векторизатор сохранены в файлы 'клиентский_отдел_модель.pkl' и 'клиентский_отдел_векторизатор.pkl'")
+
+    # 1. Кривая обучения
+    train_sizes, train_scores, test_scores = learning_curve(
+        model, X_train_vec, y_train, cv=5,
+        scoring='accuracy', train_sizes=np.linspace(0.1, 1.0, 5))
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(train_sizes, np.mean(train_scores, axis=1), label='Обучение')
+    plt.plot(train_sizes, np.mean(test_scores, axis=1), label='Валидация')
+    plt.title('Кривая обучения для модели клиентского отдела')
+    plt.xlabel('Размер обучающей выборки')
+    plt.ylabel('Точность')
+    plt.legend()
+    plt.grid()
+    plt.savefig('кривая_обучения_клиентский.png')
+
+    # 2. Матрица ошибок
+    y_pred = model.predict(X_test_vec)
+    cm = confusion_matrix(y_test, y_pred)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    disp.plot(cmap='Blues')
+    plt.title('Матрица ошибок для модели клиентского отдела')
+    plt.savefig('матрица_ошибок_клиентский.png')
+
+    # 3. Важность признаков
+    feature_importances = pd.DataFrame({
+        'feature': vectorizer.get_feature_names_out(),
+        'importance': model.feature_importances_
+    }).sort_values('importance', ascending=False).head(20)
+
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x='importance', y='feature', data=feature_importances)
+    plt.title('Топ-20 важных слов для клиентского отдела')
+    plt.tight_layout()
+    plt.savefig('важность_признаков_клиентский.png')
+
+    # Вывод отчетов
+    print("\nОтчет о классификации:")
+    print(classification_report(y_test, y_pred))
+
+    # Примеры предсказаний для специалистов клиентского отдела
+    samples = [
+        "Менеджер по работе с клиентами с опытом решения сложных вопросов и обработки обращений",
+        "Специалист отдела поддержки клиентов, консультирование по продуктам компании",
+        "Инженер-программист с опытом разработки мобильных приложений",
+        "Учитель английского языка средней школы с педагогическим образованием",
+        "Руководитель клиентского сервиса, организация работы отдела поддержки",
+        "Менеджер по продажам с навыками ведения переговоров и работы с возражениями",
+        "Бухгалтер с опытом ведения финансовой отчетности предприятия",
+        "Консультант по обслуживанию клиентов в банковской сфере"
+    ]
+
+    print("\nПримеры предсказаний для клиентского отдела:")
+    for sample in samples:
+        processed_text = preprocess_text(sample)
+        text_vec = vectorizer.transform([processed_text])
+        proba = model.predict_proba(text_vec)[0][1] * 100
+        print(f"{sample[:50]}...: {proba:.1f}% соответствия")
+
+    plt.show()
+
+except Exception as e:
+    print(f"\nПроизошла ошибка: {str(e)}")
